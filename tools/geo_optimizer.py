@@ -99,8 +99,8 @@ def analyze_for_geo(url: str, page_text: str) -> GEOAudit:
         ))
 
     # ── 2. Direct answer in intro ────────────────────────────────────────────
-    audit.has_direct_answer = _has_direct_answer(page_text)
-    if audit.has_direct_answer:
+    audit.has_direct_answers = _has_direct_answer(page_text)
+    if audit.has_direct_answers:
         score += 15
     else:
         issues.append(GEOIssue(
