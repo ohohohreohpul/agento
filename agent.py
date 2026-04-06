@@ -2,7 +2,8 @@
 Agento — AI SEO Orchestrator Agent.
 Uses Claude Opus 4.6 with adaptive thinking + tool use to plan and execute
 full SEO workflows: technical audits, keyword research, backlink discovery,
-schema generation, and GEO/AEO optimisation.
+schema generation, GEO/AEO optimisation, competitor analysis, GSC data,
+and llms.txt generation.
 """
 from __future__ import annotations
 
@@ -14,14 +15,21 @@ import anthropic
 from config import ANTHROPIC_API_KEY, MODEL
 from models import (
     BacklinkOpportunities,
+    CompetitorAnalysis,
     GEOAudit,
+    GSCCoverageResult,
+    GSCPerformanceResult,
     KeywordResearchResult,
+    LLMsTxtResult,
     SchemaMarkup,
     TechnicalAudit,
 )
 from tools.backlinks import find_backlink_opportunities
+from tools.competitor import analyze_competitor
 from tools.geo_optimizer import analyze_for_geo
+from tools.gsc import get_coverage_issues, get_search_performance
 from tools.keywords import check_serp_rank, research_keywords
+from tools.llms_txt import generate_llms_txt
 from tools.schema import generate_schema
 from tools.web_audit import audit_url, extract_page_text
 
@@ -111,8 +119,9 @@ TOOLS: list[dict] = [
         "name": "analyze_for_geo",
         "description": (
             "Fetch a URL's content and analyse it for GEO/AEO readiness — how likely it is "
-            "to be cited by AI search engines (ChatGPT, Perplexity, Google AI Overviews). "
-            "Returns an AI readiness score (0–100), specific issues, and actionable recommendations."
+            "to be cited by AI search engines (ChatGPT, Perplexity, Google AI Overviews, Gemini). "
+            "Returns an AI readiness score (0–100), Princeton/Georgia Tech tactic coverage, "
+            "specific issues by severity, and actionable recommendations."
         ),
         "input_schema": {
             "type": "object",
@@ -135,6 +144,68 @@ TOOLS: list[dict] = [
                 "domain": {"type": "string", "description": "The domain to check rank for"},
             },
             "required": ["keyword", "domain"],
+        },
+    },
+    {
+        "name": "generate_llms_txt",
+        "description": (
+            "Generate an llms.txt file for a website — a structured markdown index that helps "
+            "AI search engines (ChatGPT, Perplexity, Gemini, Claude) discover and cite the site's "
+            "best content. Also checks if the site already has an llms.txt, inspects robots.txt "
+            "for blocked AI crawlers, and recommends fixes. "
+            "Adopted by Stripe, Cloudflare, Vercel, and 1,000+ sites."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The website URL to generate llms.txt for (homepage)"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "get_search_performance",
+        "description": (
+            "Fetch real search performance data from Google Search Console: "
+            "top keywords by clicks/impressions/CTR/position, top pages, and "
+            "quick-win opportunities (positions 4–15 with high impressions but low CTR). "
+            "Requires GSC_SERVICE_ACCOUNT_JSON to be configured."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "property_url": {
+                    "type": "string",
+                    "description": "GSC property URL (e.g. 'https://example.com/' or 'sc-domain:example.com')",
+                },
+                "days": {
+                    "type": "integer",
+                    "description": "Number of days to look back (default 28, max 90)",
+                    "default": 28,
+                },
+                "page_filter": {
+                    "type": "string",
+                    "description": "Optional URL substring to filter results (e.g. '/blog/')",
+                },
+            },
+            "required": ["property_url"],
+        },
+    },
+    {
+        "name": "analyze_competitor",
+        "description": (
+            "Run a full competitor gap analysis: find keywords the competitor ranks for "
+            "that you don't (keyword gap), referring domains linking to them but not you "
+            "(backlink gap), and their top organic pages. "
+            "Requires DataForSEO for full data; falls back to Google search estimate without it."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "your_domain": {"type": "string", "description": "Your domain (e.g. 'yourblog.com')"},
+                "competitor_domain": {"type": "string", "description": "Competitor domain to analyse (e.g. 'competitor.com')"},
+            },
+            "required": ["your_domain", "competitor_domain"],
         },
     },
 ]
@@ -182,12 +253,31 @@ def _run_tool(name: str, inputs: dict) -> Any:
             domain=inputs["domain"],
         )
 
+    if name == "generate_llms_txt":
+        result: LLMsTxtResult = generate_llms_txt(inputs["url"])
+        return result.model_dump()
+
+    if name == "get_search_performance":
+        result: GSCPerformanceResult = get_search_performance(
+            property_url=inputs["property_url"],
+            days=inputs.get("days", 28),
+            page_filter=inputs.get("page_filter"),
+        )
+        return result.model_dump()
+
+    if name == "analyze_competitor":
+        result: CompetitorAnalysis = analyze_competitor(
+            your_domain=inputs["your_domain"],
+            competitor_domain=inputs["competitor_domain"],
+        )
+        return result.model_dump()
+
     return {"error": f"Unknown tool: {name}"}
 
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """You are Agento, an expert AI SEO strategist.
+SYSTEM_PROMPT = """You are Agento, an expert AI SEO strategist for 2026.
 
 You have access to specialised tools for:
 - Technical SEO auditing (audit_url)
@@ -196,6 +286,9 @@ You have access to specialised tools for:
 - JSON-LD schema markup generation (generate_schema)
 - GEO/AEO content optimisation for AI search visibility (analyze_for_geo)
 - SERP rank checking (check_serp_rank)
+- llms.txt generation for AI crawler optimisation (generate_llms_txt)
+- Google Search Console performance data (get_search_performance)
+- Competitor gap analysis — keywords, backlinks, top pages (analyze_competitor)
 
 Your job is to:
 1. Understand the user's SEO goal
@@ -208,10 +301,15 @@ When presenting results:
 - Group findings by category (Technical / Content / Backlinks / AI Visibility)
 - Provide specific next steps the user can act on today
 - When generating schema markup, always show the complete JSON-LD block
+- When generating llms.txt, show the complete file content ready to deploy
 
-Current context: April 2026. AI search (ChatGPT, Perplexity, Google AI Overviews)
-now accounts for ~31% of US searches. GEO/AEO optimisation is as important as
-traditional SEO.
+Current context: April 2026.
+- AI search (ChatGPT, Perplexity, Google AI Overviews, Gemini) accounts for ~31% of US searches
+- ChatGPT drives 87.4% of AI referral traffic (Conductor, 13,770 domain study)
+- Wikipedia cited in 47.9% of top ChatGPT results — encyclopaedic structure matters
+- Content under 3 months old is 3x more likely to be cited by AI engines
+- llms.txt adoption: 1,000+ sites including Stripe, Cloudflare, Vercel
+- GEO/AEO optimisation is as important as traditional SEO — treat them as equals
 """
 
 

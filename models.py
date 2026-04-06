@@ -3,6 +3,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+
+
 # ── Technical SEO Audit ────────────────────────────────────────────────────────
 
 class MetaInfo(BaseModel):
@@ -122,3 +124,90 @@ class GEOAudit(BaseModel):
     content_freshness: str = ""
     recommended_schemas: list[str] = Field(default_factory=list)
     rewritten_intro: str = ""      # AI-suggested intro optimised for AI engines
+    geo_context: str = ""          # Benchmark note explaining the score
+
+
+# ── llms.txt Generation ───────────────────────────────────────────────────────
+
+class LLMsTxtSection(BaseModel):
+    title: str
+    items: list[tuple[str, str]] = Field(default_factory=list)  # (title, url)
+
+
+class LLMsTxtResult(BaseModel):
+    url: str
+    already_exists: bool = False
+    existing_content: str = ""
+    generated_content: str = ""
+    sections: list[LLMsTxtSection] = Field(default_factory=list)
+    blocked_ai_bots: list[str] = Field(default_factory=list)
+    missing_ai_bot_rules: list[str] = Field(default_factory=list)
+    issues: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+
+
+# ── Google Search Console ─────────────────────────────────────────────────────
+
+class GSCKeywordRow(BaseModel):
+    keyword: str
+    clicks: int = 0
+    impressions: int = 0
+    ctr: float = 0.0       # percentage
+    position: float = 0.0
+
+
+class GSCPerformanceResult(BaseModel):
+    property_url: str
+    days: int = 28
+    top_keywords: list[GSCKeywordRow] = Field(default_factory=list)
+    top_pages: list[GSCKeywordRow] = Field(default_factory=list)
+    quick_wins: list[GSCKeywordRow] = Field(default_factory=list)
+    total_clicks: int = 0
+    total_impressions: int = 0
+    avg_ctr: float = 0.0
+    avg_position: float = 0.0
+    error: str = ""
+
+
+class GSCCoverageResult(BaseModel):
+    property_url: str
+    submitted_urls: int = 0
+    indexed_urls: int = 0
+    coverage_note: str = ""
+    error: str = ""
+
+
+# ── Competitor Analysis ───────────────────────────────────────────────────────
+
+class CompetitorKeywordGap(BaseModel):
+    keyword: str
+    competitor_position: int = 0
+    your_position: Optional[int] = None
+    search_volume: Optional[int] = None
+    keyword_difficulty: Optional[int] = None
+    opportunity: str = "medium"    # high / medium / low
+
+
+class CompetitorBacklinkGap(BaseModel):
+    referring_domain: str
+    domain_rank: int = 0
+    links_to_competitor: int = 0
+    links_to_you: int = 0
+    contact_hint: str = ""
+
+
+class CompetitorPage(BaseModel):
+    url: str
+    estimated_traffic: int = 0
+    top_keyword: str = ""
+    keywords_count: int = 0
+
+
+class CompetitorAnalysis(BaseModel):
+    your_domain: str
+    competitor_domain: str
+    keyword_gaps: list[CompetitorKeywordGap] = Field(default_factory=list)
+    backlink_gaps: list[CompetitorBacklinkGap] = Field(default_factory=list)
+    competitor_top_pages: list[CompetitorPage] = Field(default_factory=list)
+    data_source: str = "dataforseo"
+    note: str = ""

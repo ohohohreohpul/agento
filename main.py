@@ -188,6 +188,47 @@ def full(url: str):
     )
 
 
+@cli.command()
+@click.option("--url", required=True, help="Website homepage URL")
+def llmstxt(url: str):
+    """Generate an llms.txt file for AI crawler optimisation."""
+    _run_agent(
+        f"Generate an llms.txt file for {url}. "
+        "Check if one already exists, inspect robots.txt for blocked AI bots, "
+        "and provide the complete ready-to-deploy llms.txt content. "
+        "Explain where to place it and why it matters for AI search visibility."
+    )
+
+
+@cli.command()
+@click.option("--property", "property_url", required=True, help="GSC property URL (https://example.com/ or sc-domain:example.com)")
+@click.option("--days", default=28, help="Days to look back (default 28)")
+@click.option("--page", "page_filter", default=None, help="Filter to a URL section (e.g. /blog/)")
+def gsc(property_url: str, days: int, page_filter: str | None):
+    """Pull Google Search Console performance data and identify quick wins."""
+    filter_part = f" filtered to '{page_filter}'" if page_filter else ""
+    _run_agent(
+        f"Fetch Google Search Console data for {property_url}{filter_part} over the last {days} days. "
+        "Show top keywords, top pages, average position and CTR, and identify "
+        "quick-win opportunities (positions 4–15 with high impressions but low CTR) "
+        "with specific content optimisation recommendations for each."
+    )
+
+
+@cli.command()
+@click.option("--your-domain", required=True, help="Your domain")
+@click.option("--competitor", required=True, help="Competitor domain to analyse")
+def competitor(your_domain: str, competitor: str):
+    """Run a competitor gap analysis: keywords, backlinks, and top pages."""
+    _run_agent(
+        f"Run a full competitor gap analysis comparing {your_domain} against {competitor}. "
+        "Show: (1) keywords the competitor ranks for that I don't — prioritise by search volume, "
+        "(2) referring domains linking to them but not me — prioritise by domain rank, "
+        "(3) their top organic pages — what content strategy should I replicate? "
+        "Give me a concrete action plan to close the gap."
+    )
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

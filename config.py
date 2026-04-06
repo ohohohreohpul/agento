@@ -8,6 +8,9 @@ DATAFORSEO_LOGIN = os.getenv("DATAFORSEO_LOGIN", "")
 DATAFORSEO_PASSWORD = os.getenv("DATAFORSEO_PASSWORD", "")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 
+# Google Search Console — path to service account JSON key file
+GSC_SERVICE_ACCOUNT_JSON = os.getenv("GSC_SERVICE_ACCOUNT_JSON", "")
+
 MODEL = "claude-opus-4-6"
 
 HEADERS = {
