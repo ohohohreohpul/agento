@@ -20,6 +20,7 @@ from models import (
     TechnicalAudit,
 )
 from tools.backlinks import find_backlink_opportunities
+from tools.facebook_share import list_facebook_groups, share_to_facebook_groups
 from tools.geo_optimizer import analyze_for_geo
 from tools.keywords import check_serp_rank, research_keywords
 from tools.schema import generate_schema
@@ -137,6 +138,47 @@ TOOLS: list[dict] = [
             "required": ["keyword", "domain"],
         },
     },
+    {
+        "name": "list_facebook_groups",
+        "description": (
+            "List all Facebook Groups the authenticated user belongs to. "
+            "Returns group IDs, names, privacy settings, and member counts. "
+            "Use this to discover group IDs before sharing posts. "
+            "Requires FACEBOOK_ACCESS_TOKEN to be configured."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
+        "name": "share_to_facebook_groups",
+        "description": (
+            "Share a post (message + optional link) to one or more Facebook Groups. "
+            "Returns a summary of successes and failures per group. "
+            "Requires FACEBOOK_ACCESS_TOKEN and publish_to_groups permission."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "group_ids": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of Facebook Group IDs to post to",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "The text content of the post",
+                },
+                "link": {
+                    "type": "string",
+                    "description": "Optional URL to attach to the post",
+                },
+            },
+            "required": ["group_ids", "message"],
+        },
+    },
 ]
 
 
@@ -182,6 +224,18 @@ def _run_tool(name: str, inputs: dict) -> Any:
             domain=inputs["domain"],
         )
 
+    if name == "list_facebook_groups":
+        result = list_facebook_groups()
+        return result.model_dump()
+
+    if name == "share_to_facebook_groups":
+        result = share_to_facebook_groups(
+            group_ids=inputs["group_ids"],
+            message=inputs["message"],
+            link=inputs.get("link"),
+        )
+        return result.model_dump()
+
     return {"error": f"Unknown tool: {name}"}
 
 
@@ -196,6 +250,8 @@ You have access to specialised tools for:
 - JSON-LD schema markup generation (generate_schema)
 - GEO/AEO content optimisation for AI search visibility (analyze_for_geo)
 - SERP rank checking (check_serp_rank)
+- Facebook Group listing (list_facebook_groups)
+- Facebook Group posting (share_to_facebook_groups)
 
 Your job is to:
 1. Understand the user's SEO goal

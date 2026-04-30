@@ -1,0 +1,14 @@
+[
+  {
+    "message": "Exciting news! Check out our latest update and let us know what you think.",
+    "link": "https://example.com/latest-update"
+  },
+  {
+    "message": "Have you seen this? We think you'll find it really useful.",
+    "link": "https://example.com/useful-resource"
+  },
+  {
+    "message": "Happy to share this with the community. Drop your thoughts in the comments!",
+    "link": null
+  }
+]

@@ -122,3 +122,32 @@ class GEOAudit(BaseModel):
     content_freshness: str = ""
     recommended_schemas: list[str] = Field(default_factory=list)
     rewritten_intro: str = ""      # AI-suggested intro optimised for AI engines
+
+
+# ── Facebook Auto-Share ────────────────────────────────────────────────────────
+
+class FacebookGroup(BaseModel):
+    id: str
+    name: str
+    privacy: str = ""
+    member_count: int = 0
+
+
+class FacebookPostResult(BaseModel):
+    group_id: str
+    group_name: str = ""
+    post_id: str
+    success: bool
+    error: str = ""
+
+
+class FacebookShareSummary(BaseModel):
+    total: int
+    succeeded: int
+    failed: int
+    results: list[FacebookPostResult] = Field(default_factory=list)
+
+
+class FacebookGroupsResult(BaseModel):
+    groups: list[FacebookGroup] = Field(default_factory=list)
+    total: int = 0

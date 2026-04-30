@@ -8,6 +8,15 @@ DATAFORSEO_LOGIN = os.getenv("DATAFORSEO_LOGIN", "")
 DATAFORSEO_PASSWORD = os.getenv("DATAFORSEO_PASSWORD", "")
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
 
+# Facebook Auto-Share
+FACEBOOK_ACCESS_TOKEN = os.getenv("FACEBOOK_ACCESS_TOKEN", "")
+FACEBOOK_GROUP_IDS: list[str] = [
+    gid.strip()
+    for gid in os.getenv("FACEBOOK_GROUP_IDS", "").split(",")
+    if gid.strip()
+]
+FACEBOOK_GRAPH_VERSION = os.getenv("FACEBOOK_GRAPH_VERSION", "v21.0")
+
 MODEL = "claude-opus-4-6"
 
 HEADERS = {
